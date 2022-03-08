@@ -4,7 +4,7 @@
 
 The approach is briefly discussed in https://tishina.in/initial-access/xll-delivery
 
-`xyrella` currently **only builds on Windows.**
+`xyrella` currently **only builds on Windows.** *(no longer true, cross-compiling is possible win MinGW)*
 
 # dependencies
 
